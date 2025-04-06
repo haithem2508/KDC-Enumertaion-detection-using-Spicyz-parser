@@ -1,0 +1,102 @@
+# DNS Analysis Tool for detecting common AD reconnaissance tools shows 
+# Detects BloodHound tool's characteristic DNS queries
+# Identifies Cobalt Strike C2 common DNS patterns
+# Flags KDC enumeration attempts via DNS
+# Usage: cat dns_log.txt | spicy-driver -p DNSAnalyzer::DNSLog bloodHound_cobaltstrike_KDC_Enum.spicy
+
+
+module DNSAnalyzer;
+
+# Simple DNS query parser with threat detection
+public type DNSQuery = unit {
+    # Parse each DNS query line
+    line: bytes &until=b"\n";
+    
+    on %init {
+        self.found_bloodhound = False;
+        self.found_cobalt = False;
+        self.found_kdc = False;
+    }
+    
+    on line {
+        # BloodHound detection - checks for service discovery queries
+        if (b"_ldap._tcp" in self.line && b"dc._msdcs" in self.line)
+            self.found_bloodhound = True; # LDAP + DC service discovery
+        
+        if (b"_kerberos._tcp" in self.line)
+            self.found_bloodhound = True; # Kerberos service discovery
+            
+        if (b"_gc._tcp" in self.line)
+            self.found_bloodhound = True; # Global catalog service
+            
+        if (b"$" in self.line)
+            self.found_bloodhound = True; # Computer account enumeration
+            
+        # Cobalt Strike detection
+        if (b"dc." in self.line)
+            self.found_cobalt = True; # DC queries - common C2 fingerprints
+            
+        if (b"TXT" in self.line)
+            self.found_cobalt = True; # TXT records used for data exfil
+            
+        if (|self.line| > 50)
+            self.found_cobalt = True; # Long domain check - over 50 chars common for Base64 encoded domain by C2 (can be improved to detect base64 encoded domains)
+            
+        if (b"_kerberos" in self.line)
+            self.found_kdc = True; # KDC enumeration checks
+            
+        if (b"_kpasswd" in self.line)
+            self.found_kdc = True;
+            
+        if (b"_ldap" in self.line)
+            self.found_kdc = True;
+            
+        if (b"_gc" in self.line)
+            self.found_kdc = True; 
+        
+        # CLI output  
+        if (self.found_bloodhound || self.found_cobalt || self.found_kdc) {
+            print b"X======X SUSPICIOUS DNS QUERY SUSPICIOUS X======X";
+            print b"Query: " + self.line;
+            print b"-------------------------------------------";
+            
+            if (self.found_bloodhound)
+                print b"BloodHound:       SUSPICIOUS";
+            else
+                print b"BloodHound:       clean";
+                
+            if (self.found_cobalt)
+                print b"Cobalt Strike:    SUSPICIOUS";
+            else
+                print b"Cobalt Strike:    clean";
+                
+            if (self.found_kdc)
+                print b"KDC Enumeration:  SUSPICIOUS";
+            else
+                print b"KDC Enumeration:  clean";
+                
+            print b"===========================================";
+            print "\n";
+        }
+        else{
+                        print b"======/ DNS QUERY CLEAN \\======";
+            print b"Query: " + self.line;                
+            print b"===========================================";
+            print "\n";
+
+        }
+    }
+    
+    var found_bloodhound: bool;
+    var found_cobalt: bool;
+    var found_kdc: bool;
+};
+
+public type DNSLog = unit {
+    # Parse entire log file as a series of queries
+    queries: DNSQuery[] &eod;
+    
+    on %done {
+        print b"DNS analysis complete";
+    }
+};

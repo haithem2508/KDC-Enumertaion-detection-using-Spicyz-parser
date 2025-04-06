@@ -1,0 +1,10 @@
+_ldap._tcp.dc._msdcs.domain.local
+_kerberos._tcp.domain.local
+_gc._tcp.domain.local
+normal-domain.com
+dc.contoso.local
+longsubdomainnamewithlotsofcharactersmorethan30chars.example.com IN TXT
+computer01$.domain.local
+google.com
+random.query.example.com
+_kerberos.domain.com
