@@ -1,6 +1,8 @@
 ### BloodHound and Cobalt Strike DNS Detector
 A lightweight and simple DNS analysis tool written in Spicy for detecting common Active Directory reconnaissance activities and C2 communications.
-
+```version
+spicy-driver version: spicy-driver v1.12.0 (0e1959ac)
+```
 Overview
 This tool analyzes DNS query logs to identify suspicious patterns associated with:
 
